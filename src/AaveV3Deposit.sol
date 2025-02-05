@@ -28,6 +28,7 @@ contract AaveV3Deposit is Strategy {
 
     /// @notice Deploys assets into designated Aave pool
     function deploy(uint256 assets) external override onlyVault {
+        IERC20(asset()).safeTransferFrom(address(vault), address(this), assets);
         IERC20(asset()).safeIncreaseAllowance(address(pool), assets);
         pool.supply(asset(), assets, address(this), 0);
     }
@@ -41,7 +42,8 @@ contract AaveV3Deposit is Strategy {
         );
     }
 
+    /// @dev All assets in this strategy should be deployed in Aave, so we only count aTokens
     function totalAssets() external view override returns (uint256) {
-        return aToken.balanceOf(address(this)) + IERC20(asset()).balanceOf(address(this));
+        return aToken.balanceOf(address(this));
     }
 }

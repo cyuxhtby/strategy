@@ -44,7 +44,6 @@ contract Vault is ERC4626, Ownable {
         uint256 vaultBalance = IERC20(asset()).balanceOf(address(this));
         if (vaultBalance > 0) {
             IERC20(asset()).safeIncreaseAllowance(address(strategy), vaultBalance);
-            IERC20(asset()).safeTransfer(address(strategy), vaultBalance);
             strategy.deploy(vaultBalance);
         }
 
@@ -59,29 +58,36 @@ contract Vault is ERC4626, Ownable {
         return strategy.totalAssets() + vaultBalance;
     }
 
-    /// @notice Deposits assets into the vault and supplies them to strategy.
+    /// @notice Deposits assets into the vault and supplies them to strategy and mints shares.
+    /// @dev If no strategy is present then assets remain in vault.
     function _deposit(
-        address /*caller*/, 
-        address /*receiver*/, 
+        address caller, 
+        address receiver, 
         uint256 assets, 
-        uint256 /*shares*/
+        uint256 shares
     ) internal override {
-        IERC20(asset()).safeTransfer(address(strategy), assets);
-        strategy.deploy(assets);
+        super._deposit(caller, receiver, assets, shares);
+
+        if (address(strategy) != address(0)) {
+            IERC20(asset()).safeIncreaseAllowance(address(strategy), assets);
+            strategy.deploy(assets);
+        }
 
         emit Deposited(assets);
     }
 
     /// @notice Withdraws assets from the strategy and transfers them to the receiver.
     function _withdraw(
-        address /* caller */,
+        address caller,
         address receiver,
-        address /* owner */,
+        address owner,
         uint256 assets,
-        uint256 /* shares */
+        uint256 shares
     ) internal override {
-        strategy.withdraw(assets);
-        IERC20(asset()).safeTransfer(receiver, assets);
+        if (address(strategy) != address(0)) {
+            strategy.withdraw(assets);
+        }
+        super._withdraw(caller, receiver, owner, assets, shares);
 
         emit Withdrawal(assets);
     }
